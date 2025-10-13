@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox.jsx'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
+import InputMask from 'react-input-mask'
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
 import {
   Truck,
@@ -31,10 +32,14 @@ import NavigationMenu from './components/NavigationMenu.jsx'
 import MapaEventos from './components/MapaEventos.jsx'
 import apiService from './services/api.js'
 import OrdemServico from './components/ordemOs.jsx'
+import Relatorios from './components/Relatorios.jsx'
+import Backup from './components/Backup.jsx'
+import RestoreOperacoes from './components/RestoreBackup.jsx'
 import InputDatetimeLocal, { InputTimeLocal } from './components/InputDatetimeLocal.jsx'
 // import './App.css'
 
 const locahostBackend = import.meta.env.VITE_BACKEND_URL;
+
 
 function App() {
   const [activeTab, setActiveTab] = useState('home')
@@ -95,10 +100,64 @@ function App() {
     }
   }
 
+
+  // Recuperando os dados operaçøes
+  const [listaOperacoes, setListaOperacoes] = useState([]);
+  const [idSelecionado, setIdSelecionado] = useState('');
+  const [dados, setDados] = useState(null);
+  const [idSelecionadoBtnProf, setIdSelecionadoBtnProf] = useState("");
+  // const [idSelecionadoBtn, setIdSelecionadoBtn] = useState("");
+
+
+
+  // 🔹 sempre que idSelecionado mudar, dispara a busca
+  useEffect(() => {
+    if (!idSelecionado || idSelecionado == 'default') return; // não busca se vazio
+
+    carregarCliente(idSelecionado);
+
+  }, [idSelecionado]);
+
+
+  const carregarCliente = async (id) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${locahostBackend}/api/operacoes/${id}`);
+      const data = await res.json();
+      setDados(data);
+    } catch (err) {
+      console.error('Erro ao buscar cliente:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔹 sempre que idSelecionaBtnProf mudar, dispara a busca
+  useEffect(() => {
+    if (!idSelecionadoBtnProf || idSelecionadoBtnProf == 'default') return; // não busca se vazio
+
+    carregarClienteProf(idSelecionadoBtnProf);
+
+  }, [idSelecionadoBtnProf]);
+
+
+  const carregarClienteProf = async (id) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${locahostBackend}/api/profissional/${id}`);
+      const data = await res.json();
+      setDados(data);
+    } catch (err) {
+      console.error('Erro ao buscar cliente:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   //CRIANDO A NEGOCIAÇÃO NO BANCO DE DADOS
   const salvarnegociacao = async () => {
     setLoading(true)
-    mostrarMensagem({ type: '', text: '' })
 
     try {
       // Validações básicas
@@ -129,14 +188,9 @@ function App() {
 
 
       // Salvar negociação via API
-      const response = await apiService.createNegociacao(payload)
-
-      // // Capturar código de operação
-      // if (response.codigo_operacao) {
-      //   setCodigoOperacao(response.codigo_operacao)
-      // }
-
-      mostrarMensagem('success', 'Negociação salva com sucesso! Código: ')
+      await apiService.createNegociacao(payload)
+      mostrarMensagem('success', 'Negociação salva com sucesso!')
+      await fetchListaOperacoes(); // 👈 recarrega lista
     } catch (error) {
       console.error('Erro ao salvar negociação:', error)
       mostrarMensagem('error', 'Erro ao salvar a negociação. Tente novamente.')
@@ -193,8 +247,8 @@ function App() {
 
       // chama a API no formato (id, payload)
       await apiService.updateNegociacao(id, atualizaPayload);
-
-      mostrarMensagem('success', `Atualização realizada com sucesso`)
+      mostrarMensagem('success', `Atualização realizada com sucesso`);
+      await fetchListaOperacoes(); // 👈 recarrega lista
     } catch (err) {
       console.error("Erro ao atualizar negociação:", err);
     }
@@ -247,21 +301,25 @@ function App() {
     try {
       await apiService.deleteProfissional(idSelecionadoProf);
       // setMessage({ type: 'success', text: `Deletado com sucesso` })
-      mostrarMensagem('success', 'Deletado com sucesso')
+      mostrarMensagem('success', 'Deletado com sucesso');
+      await fetchListaOperacoes(); // 👈 recarrega lista
     } catch (err) {
       console.error("Erro ao deletar:", err);
       mostrarMensagem('error', 'Erro ao deletar. Tente novamente.')
     }
   }
 
+  const [novaNegociacao, setNovaNegociacao] = useState('');
+
   const limparFormulario = () => {
-    setDadosProfissional({
-      nome: '',
-      funcao: '',
-      valor_diaria: '',
-      valor_frete: '',
-      diastrabalhado: ''
-    }),
+    setIdSelecionado('default'),
+      setDadosProfissional({
+        nome: '',
+        funcao: '',
+        valor_diaria: '',
+        valor_frete: '',
+        diastrabalhado: ''
+      }),
       setDadosOperacao({
         id: '',
         nomecliente: '',
@@ -271,7 +329,7 @@ function App() {
         responsavelproducaointerno: '',
         dataativacao: '',
         localentrega: '',
-        tipo_frete: '',
+        tipo_frete: null,
         localpartida: null,
         data_retorno: null,
         data_desmontagem: null,
@@ -282,7 +340,9 @@ function App() {
         hora_montagem: null,
         horapartida: null,
         horaretorno: null,
-        custoTotalOperacao: 0
+        custoTotalOperacao: 0,
+        quem_recebe: null,
+        tel_quem_recebe: null
       })
 
     setEvento({
@@ -307,11 +367,6 @@ function App() {
     setCalculoFrete({ distancia: 0, valor_total: 0 })
     setMessage({ type: '', text: '' })
   }
-
-
-  // Recuperando os dados operaçøes
-  const [listaOperacoes, setListaOperacoes] = useState([]);
-  const [idSelecionado, setIdSelecionado] = useState('');
 
 
   const [ordemServico, setOrdemServico] = useState({
@@ -350,35 +405,60 @@ function App() {
     hora_montagem: null,
     horapartida: null,
     horaretorno: null,
-    custoTotalOperacao: 0
+    localdesmontagem: null,
+    localretornoempresa: null,
+    custoTotalOperacao: 0,
+    quem_recebe: null,
+    tel_quem_recebe: null,
+    status: 'EM_ANDAMENTO'
   });
 
 
-  //recuperando os dados via loop
-  useEffect(() => {
-    const fetchListaOperacoes = async () => {
-      try {
-        const res = await fetch(`${locahostBackend}/api/operacoes/`);
-        const data = await res.json();
+  const fetchListaOperacoes = async () => {
+    try {
+      const res = await fetch(`${locahostBackend}/api/operacoes/`);
+      const data = await res.json();
 
-        if (Array.isArray(data)) {
-          setListaOperacoes(data);
-
-        } else {
-          console.warn("Resposta inesperada ao listar operações:", data);
-        }
-      } catch (error) {
-        console.error("Erro ao buscar lista de operações:", error);
+      if (Array.isArray(data)) {
+        setListaOperacoes(data);
       }
-    };
+    } catch (error) {
+      console.error("Erro ao buscar lista de operações:", error);
+    }
+  };
 
-    fetchListaOperacoes();
+  useEffect(() => {
+    fetchListaOperacoes(); // carrega a primeira vez
   }, []);
+
+
+  // //recuperando os dados via loop
+  //   const fetchListaOperacoes = async () => {
+  //     try {
+  //       const res = await fetch(`${locahostBackend}/api/operacoes/`);
+  //       const data = await res.json();
+
+  //       if (Array.isArray(data)) {
+  //         setListaOperacoes(data);
+
+  //       } else {
+  //         console.warn("Resposta inesperada ao listar operações:", data);
+  //       }
+  //     } catch (error) {
+  //       console.error("Erro ao buscar lista de operações:", error);
+  //     }
+  //   };
+
+  // };
+
+  // useEffect(() => {
+  //   fetchListaOperacoes(); // carrega a primeira vez
+  // }, []);
 
 
   //recupera os dados da pagina Negociações
   useEffect(() => {
-    if (!idSelecionado) return;
+    if (!idSelecionado || idSelecionado == 'default') return;
     const fetchOperacoes = async () => {
       try {
         const res = await fetch(`${locahostBackend}/api/operacoes/${idSelecionado}`);
@@ -439,14 +519,6 @@ function App() {
     fetchProfissional()
   }, [idSelecionadoProf]);
 
-
-  // Preparar dados da negociação
-  const dadosNegociacao = {
-    ...negociacao,
-    cliente_id: 1, // Por enquanto usando ID fixo, em produção buscar cliente
-    distancia_km: calculoFrete.distancia,
-    valor_frete: calculoFrete.valor_total
-  }
 
   const [evento, setEvento] = useState({
     data_partida_montagem: '',
@@ -532,12 +604,15 @@ function App() {
   //   }
   // }
 
-  const [idSelecionadoBtnProf, setIdSelecionadoBtnProf] = useState("");
-  const [idSelecionadoBtn, setIdSelecionadoBtn] = useState("");
 
-  // apenas guarda o ID selecionado
-  const handleSelectChange = (value) => {
-    setIdSelecionadoBtn(value);
+  const [selectdConsult, setSelectdConsult] = useState("");
+  const [selectedCliente, setSelectedCliente] = useState("");
+  const [teste, setTeste] = useState("");
+
+  const resetForm = () => {
+    limparFormulario();
+    setIdSelecionado('default');
+    setSelectedCliente('default');
   };
 
   const handleSelectChangeProf = (value) => {
@@ -546,13 +621,13 @@ function App() {
 
   // só consulta quando clicar no botão
   const handleConsulta = () => {
-    if (!idSelecionadoBtn) {
+    if (!selectedCliente) {
       console.warn("Nenhum cliente selecionado!");
       return;
     }
 
     // aqui você chama sua API ou lógica de consulta
-    setIdSelecionado(idSelecionadoBtn)
+    setIdSelecionado(selectedCliente)
   };
 
   const handleConsultaProf = () => {
@@ -607,7 +682,9 @@ function App() {
             nomecliente: item.nomecliente,
             responsavelativacaointerno: item.responsavelativacaointerno,
             dataativacao: item.dataativacao,
-            localentrega: item.localentrega
+            localentrega: item.localentrega,
+            horapartida: item.horapartida,
+            status: item.status
           })) : []
 
         const amareloSemaforo = Array.isArray(dados.proximaSemana)
@@ -616,7 +693,8 @@ function App() {
             nomecliente: item.nomecliente,
             responsavelativacaointerno: item.responsavelativacaointerno,
             dataativacao: item.dataativacao,
-            localentrega: item.localentrega
+            localentrega: item.localentrega,
+            horapartida: item.horapartida,
           })) : []
 
         const azulSemaforo = Array.isArray(dados.duasSemanasOuMais)
@@ -625,7 +703,8 @@ function App() {
             nomecliente: item.nomecliente,
             responsavelativacaointerno: item.responsavelativacaointerno,
             dataativacao: item.dataativacao,
-            localentrega: item.localentrega
+            localentrega: item.localentrega,
+            horapartida: item.horapartida,
           })) : []
 
 
@@ -653,31 +732,58 @@ function App() {
   // Função para atualizar status de operação
   const atualizarStatusOperacao = async (operacaoId, novoStatus) => {
     try {
-      const response = await fetch(`/api/operacoes/${operacaoId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: novoStatus })
-      })
-
-      if (response.ok) {
-        mostrarMensagem('success', 'Status atualizado com sucesso!')
-        // Recarregar dados do semáforo
-        carregarSemaforo()
-      } else {
-        const erro = await response.json()
-        mostrarMensagem('error', erro.error || 'Erro ao atualizar status.')
+      const status = {
+        status: novoStatus
       }
+      await apiService.updateNegociacao(operacaoId, status);
+      mostrarMensagem('success', 'Status atualizado com sucesso!')
+      // Recarregar dados do semáforo
+      carregarSemaforo()
+
     } catch (error) {
       console.error('Erro ao atualizar status:', error)
       mostrarMensagem('error', 'Erro ao atualizar status da operação.')
     }
   }
 
-  const formatarData = (data) => {
-    return new Date(data).toLocaleDateString('pt-BR')
+  function formatHora(horaISO) {
+    if (!horaISO) return '';
+
+    try {
+      const data = new Date(horaISO);
+      const options = {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'America/Sao_Paulo', // 👈 Corrige o fuso
+      };
+      return new Intl.DateTimeFormat('pt-BR', options).format(data);
+    } catch (err) {
+      console.warn('Erro ao formatar hora:', err);
+      return '';
+    }
   }
+
+
+  const formatarData = (data) => {
+    return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  }
+
+  function formatarDataBrasileira(data) {
+    if (!data) return '';
+
+    // Cria o objeto Date com base na string ISO
+    const d = new Date(data);
+
+    // Ajusta o fuso para UTC-3 (horário de Brasília)
+    d.setHours(d.getHours() + 3);
+
+    // Retorna no formato brasileiro
+    return d.toLocaleDateString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+    });
+  }
+
 
   const formatarMoeda = (valor) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -699,6 +805,11 @@ function App() {
   useEffect(() => {
     calcularDiarias()
   }, [profissionais])
+
+
+  const btnTeste = (value) => {
+    setTeste(value)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -723,8 +834,8 @@ function App() {
             <Alert
               className={
                 message.type === 'error'
-                  ? 'border-red-500 bg-red-50'
-                  : 'border-green-500 bg-green-50'
+                  ? 'fixed border-red-500 bg-red-50 w-[60%]'
+                  : 'fixed border-green-500 bg-green-50 w-[60%]'
               }
             >
               {message.type === 'error' ? (
@@ -752,11 +863,13 @@ function App() {
                 <div className="flex items-end gap-2">
                   <div>
                     <Label htmlFor="tipo_negocio">Consulta por Cliente</Label>
-                    <Select onValueChange={handleSelectChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={dadosOperacao.nomecliente ? dadosOperacao.nomecliente : 'Consulta por cliente'} />
+                    <Select value={idSelecionado} onValueChange={(e) => setIdSelecionado(e)}>
+                      <SelectTrigger className="bg-white">
+                        {/* <SelectValue placeholder={selectedCliente == 'default' ? "Consulta por Cliente" : selectedCliente} /> */}
+                        <SelectValue placeholder="Selecione um cliente" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
+                        <SelectItem value="default">Consulta por Cliente</SelectItem>
                         {listaOperacoes.map((opList) => (
                           <SelectItem key={opList.id} value={opList.id}>{opList.nomecliente}</SelectItem>
                         ))}
@@ -770,11 +883,17 @@ function App() {
                     </Button>
                   </div>
                   <div>
-                    <Button 
+                    <Button
                       className="bg-red-500 hover:bg-red-600"
                       variant="destructive"
                       onClick={deleteNegociacao}>
                       Deletar
+                    </Button>
+                  </div>
+                  <div>
+                    <Button onClick={resetForm} disabled={loading}>
+                      {loading ? (<Loader2 className="h-4 w-4 animate-spin mr-2" />) : (<CheckCircle className="h-4 w-4 mr-2" />)}
+                      {"Criar uma nova Negociação"}
                     </Button>
                   </div>
                 </div>
@@ -795,7 +914,7 @@ function App() {
                   <div>
                     <Label htmlFor="tipo_negocio">Modelo de Negócio *</Label>
                     <Select value={dadosOperacao.modelonegocio} onValueChange={(value) => setDadosOperacao({ ...dadosOperacao, modelonegocio: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder={dadosOperacao.modelonegocio ?? 'Selecione o tipo'} />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
@@ -805,17 +924,18 @@ function App() {
                     </Select>
                   </div>
 
-                  <div>
+                  <div className="flex flex-col gap-1 mb-4">
                     <Label htmlFor="cliente_nome">Nome do Cliente *</Label>
                     <Input
                       id="cliente_nome"
                       value={dadosOperacao.nomecliente ?? ''}
                       onChange={(e) => setDadosOperacao({ ...dadosOperacao, nomecliente: e.target.value })}
                       placeholder="Digite o nome do cliente"
+                      className="h-11 bg-white"
                     />
                   </div>
 
-                  <div>
+                  <div className="flex flex-col gap-1 mb-4">
                     <Label htmlFor="responsavel_negociacao">Responsável pela Negociação</Label>
                     {/* INPUT TEXT */}
                     <Input
@@ -823,26 +943,29 @@ function App() {
                       value={dadosOperacao.responsavelnegociacao ?? ''}
                       onChange={(e) => setDadosOperacao({ ...dadosOperacao, responsavelnegociacao: e.target.value })}
                       placeholder="Nome do responsável"
+                      className="h-11 bg-white"
                     />
                   </div>
 
-                  <div>
+                  <div className="flex flex-col gap-1 mb-4">
                     <Label htmlFor="responsavel_ativacao">Responsável pela Ativação</Label>
                     <Input
                       id="responsavel_ativacao"
                       value={dadosOperacao.responsavelativacaointerno ?? ''}
                       onChange={(e) => setDadosOperacao({ ...dadosOperacao, responsavelativacaointerno: e.target.value })}
                       placeholder="Nome do responsável"
+                      className="h-11 bg-white"
                     />
                   </div>
 
-                  <div>
+                  <div className="flex flex-col gap-1 mb-4">
                     <Label htmlFor="responsavel_producao">Responsável pela Produção</Label>
                     <Input
                       id="responsavel_producao"
                       value={dadosOperacao.responsavelproducaointerno ?? ''}
                       onChange={(e) => setDadosOperacao({ ...dadosOperacao, responsavelproducaointerno: e.target.value })}
                       placeholder="Nome do responsável"
+                      className="h-11 bg-white"
                     />
                   </div>
 
@@ -914,7 +1037,7 @@ function App() {
                   </Button> */}
                   <Button onClick={idSelecionado && idSelecionado !== "default" ? atualizarNegociacao : salvarnegociacao} disabled={loading}>
                     {loading ? (<Loader2 className="h-4 w-4 animate-spin mr-2" />) : (<CheckCircle className="h-4 w-4 mr-2" />)}
-                    {idSelecionado && idSelecionado !== "default" ? "Atualizar Negociação" : "Salvar Negociação"}
+                    {idSelecionado && idSelecionado !== 'default' ? "Atualizar Negociação" : "Salvar Negociação"}
                   </Button>
                   <Button variant="outline" onClick={limparFormulario}>
                     Limpar Formulário
@@ -964,54 +1087,62 @@ function App() {
                 <CardHeader className="bg-red-50">
                   <CardTitle className="text-red-800 flex items-center gap-2">
                     <AlertCircle className="h-5 w-5" />
-                    Vermelho — Emergência ({dadosSemaforo.vermelho.length})
+                    Emergência ({dadosSemaforo.vermelho.length})
                   </CardTitle>
                   <CardDescription className="text-red-600">
-                    ATENÇÃO - Eventos críticos
+                    ATENÇÃO - Eventos dessa semana
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4">
                   {dadosSemaforo.vermelho.length > 0 ? (
                     <div className="space-y-3">
                       {dadosSemaforo.vermelho.map((operacao, index) => (
-                        <div key={index} className="p-3 border border-red-200 rounded-lg bg-red-50">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-red-900">{operacao.nomecliente}</h4>
-                              <p className="text-sm text-red-700 flex items-center gap-1 mt-1">
-                                <Calendar className="h-3 w-3" />
-                                {formatarData(operacao.dataativacao)}
-                              </p>
-                              <p className="text-sm text-red-700 flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {operacao.localentrega}
-                              </p>
-                              <p className="text-sm text-red-700 flex items-center gap-1">
-                                <User className="h-3 w-3" />
-                                {operacao.responsavelativacaointerno}
-                              </p>
+                        <div key={index}>
+                          {operacao.status === 'EM_ANDAMENTO' && (
+                            <div className="p-3 border border-red-200 rounded-lg bg-red-50">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-red-900">{operacao.nomecliente}</h4>
+                                  <p className="text-sm text-red-700 flex items-center gap-1 mt-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {`${formatarDataBrasileira(operacao.dataativacao)} ${operacao.horapartida ? '- ' + formatHora(operacao.horapartida) : ''}`}
+                                  </p>
+                                  <p className="text-sm text-red-700 flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {operacao.localentrega}
+                                  </p>
+                                  <p className="text-sm text-red-700 flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    {operacao.responsavelativacaointerno}
+                                  </p>
+                                </div>
+                                <Badge className="bg-red-100 text-red-800">
+                                  ATENÇÃO
+                                </Badge>
+                              </div>
+                              <div className="flex gap-2 mt-3">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setActiveTab('ordem-servico');
+                                    setIdSelecionado(operacao.id);
+                                    setSelectdConsult(operacao.nomecliente);
+                                    btnTeste(operacao.nomecliente);
+                                  }}
+                                >
+                                  Ver Operação
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => atualizarStatusOperacao(operacao.id, 'FINALIZADA')}
+                                >
+                                  Concluir
+                                </Button>
+                              </div>
                             </div>
-                            <Badge className="bg-red-100 text-red-800">
-                              ATENÇÃO
-                            </Badge>
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setActiveTab('negociacao')}
-                            >
-                              Ver Operação
-                            </Button>
-                            {operacao.status === 'PLANEJADA' && (
-                              <Button
-                                size="sm"
-                                onClick={() => atualizarStatusOperacao(operacao.id, 'EM_ANDAMENTO')}
-                              >
-                                Marcar Em Andamento
-                              </Button>
-                            )}
-                          </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1028,10 +1159,10 @@ function App() {
                 <CardHeader className="bg-yellow-50">
                   <CardTitle className="text-yellow-800 flex items-center gap-2">
                     <AlertCircle className="h-5 w-5" />
-                    Amarelo — Atenção ({dadosSemaforo.amarelo.length})
+                    Atenção ({dadosSemaforo.amarelo.length})
                   </CardTitle>
                   <CardDescription className="text-yellow-600">
-                    Eventos que requerem atenção
+                    Eventos para próxima semana
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4">
@@ -1044,7 +1175,7 @@ function App() {
                               <h4 className="font-medium text-yellow-900">{operacao.nomecliente}</h4>
                               <p className="text-sm text-yellow-700 flex items-center gap-1 mt-1">
                                 <Calendar className="h-3 w-3" />
-                                {formatarData(operacao.dataativacao)}
+                                {`${formatarDataBrasileira(operacao.dataativacao)} ${operacao.horapartida ? '- ' + formatHora(operacao.horapartida) : ''}`}
                               </p>
                               <p className="text-sm text-yellow-700 flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
@@ -1063,18 +1194,10 @@ function App() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setActiveTab('negociacao')}
+                              onClick={() => setActiveTab('ordem-servico')}
                             >
                               Ver Operação
                             </Button>
-                            {operacao.status === 'PLANEJADA' && (
-                              <Button
-                                size="sm"
-                                onClick={() => atualizarStatusOperacao(operacao.id, 'EM_ANDAMENTO')}
-                              >
-                                Marcar Em Andamento
-                              </Button>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -1092,10 +1215,10 @@ function App() {
                 <CardHeader className="bg-blue-50">
                   <CardTitle className="text-blue-800 flex items-center gap-2">
                     <CheckCircle className="h-5 w-5" />
-                    Azul — Cuidado ({dadosSemaforo.azul.length})
+                    Cuidado ({dadosSemaforo.azul.length})
                   </CardTitle>
                   <CardDescription className="text-blue-600">
-                    Eventos para monitoramento
+                    Eventos para demais semanas
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-4">
@@ -1108,7 +1231,7 @@ function App() {
                               <h4 className="font-medium text-blue-900">{operacao.nomecliente}</h4>
                               <p className="text-sm text-blue-700 flex items-center gap-1 mt-1">
                                 <Calendar className="h-3 w-3" />
-                                {formatarData(operacao.dataativacao)}
+                                {`${formatarDataBrasileira(operacao.dataativacao)} ${operacao.horapartida ? '- ' + formatHora(operacao.horapartida) : ''}`}
                               </p>
                               <p className="text-sm text-blue-700 flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
@@ -1127,18 +1250,10 @@ function App() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setActiveTab('negociacao')}
+                              onClick={() => setActiveTab('ordem-servico')}
                             >
                               Ver Operação
                             </Button>
-                            {operacao.status === 'PLANEJADA' && (
-                              <Button
-                                size="sm"
-                                onClick={() => atualizarStatusOperacao(operacao.id, 'EM_ANDAMENTO')}
-                              >
-                                Marcar Em Andamento
-                              </Button>
-                            )}
                           </div>
                         </div>
                       ))}
@@ -1160,11 +1275,12 @@ function App() {
                 <div className="flex items-end gap-2">
                   <div>
                     <Label htmlFor="tipo_negocio">Consulta por Cliente</Label>
-                    <Select onValueChange={handleSelectChange}>
-                      <SelectTrigger>
+                    <Select value={idSelecionado} onValueChange={(e) => setIdSelecionado(e)}>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder={dadosOperacao.nomecliente ? dadosOperacao.nomecliente : 'Consulta por cliente'} />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
+                        <SelectItem value="default">selecione um usuario</SelectItem>
                         {listaOperacoes.map((opList) => (
                           <SelectItem key={opList.id} value={opList.id}>{opList.nomecliente}</SelectItem>
                         ))}
@@ -1204,7 +1320,7 @@ function App() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <InputDatetimeLocal
-                      label="Data de Partida para Montagem"
+                      label="Data de Partida"
                       name="data_partida"
                       value={dadosOperacao.data_partida ?? ''}
                       onChange={(e) =>
@@ -1216,7 +1332,7 @@ function App() {
                   <div className='flex gap-4 items-end'>
                     <div>
                       <InputTimeLocal
-                        label="Hora de Partida para Montagem"
+                        label="Hora de Partida"
                         name="horapartida"
                         value={dadosOperacao.horapartida ?? ''}
                         onChange={(e) =>
@@ -1265,7 +1381,7 @@ function App() {
                       <Label htmlFor="local_entrega">Local de Entrega</Label>
                       <Input
                         id="local_entrega"
-                        value={dadosOperacao.localentrega ?? ''}
+                        value={dadosOperacao.localentrega == 'Local Entrega' ? '' : dadosOperacao.localentrega}
                         onChange={(e) => setDadosOperacao({ ...dadosOperacao, localentrega: e.target.value })}
                         placeholder="Cidade, Estado"
                         className="h-11 bg-white"
@@ -1284,15 +1400,27 @@ function App() {
                     />
                   </div>
 
-                  <div>
-                    <InputTimeLocal
-                      label="Hora da Desmontagem"
-                      name="hora_demontagem"
-                      value={dadosOperacao.hora_desmontagem ?? ''}
-                      onChange={(e) =>
-                        setDadosOperacao({ ...dadosOperacao, hora_desmontagem: e.target.value })
-                      }
-                    />
+                  <div className='flex gap-4 items-end'>
+                    <div>
+                      <InputTimeLocal
+                        label="Hora da Desmontagem"
+                        name="hora_demontagem"
+                        value={dadosOperacao.hora_desmontagem ?? ''}
+                        onChange={(e) =>
+                          setDadosOperacao({ ...dadosOperacao, hora_desmontagem: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className='flex flex-1 flex-col gap-1 mb-4'>
+                      <Label htmlFor="local_desmontagem">Local da Demontagem</Label>
+                      <Input
+                        id="local_desmontagem"
+                        value={dadosOperacao.localdesmontagem ?? ''}
+                        onChange={(e) => setDadosOperacao({ ...dadosOperacao, localdesmontagem: e.target.value })}
+                        placeholder="Cidade, Estado"
+                        className="h-11 bg-white"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -1306,15 +1434,28 @@ function App() {
                     />
                   </div>
 
-                  <div>
-                    <InputTimeLocal
-                      label="Hora de Retorno à Empresa"
-                      name="horaretorno"
-                      value={dadosOperacao.horaretorno}
-                      onChange={(e) =>
-                        setDadosOperacao({ ...dadosOperacao, horaretorno: e.target.value })
-                      }
-                    />
+                  <div className='flex gap-4 items-end'>
+                    <div>
+                      <InputTimeLocal
+                        label="Hora de Retorno à Empresa"
+                        name="horaretorno"
+                        value={dadosOperacao.horaretorno}
+                        onChange={(e) =>
+                          setDadosOperacao({ ...dadosOperacao, horaretorno: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className='flex flex-1 flex-col gap-1 mb-4'>
+                      <Label htmlFor="local_retorno_empresa">Local de Retorno à Empresa</Label>
+                      <Input
+                        id="local_retorno_empresa"
+                        value={dadosOperacao.localretornoempresa ?? ''}
+                        onChange={(e) => setDadosOperacao({ ...dadosOperacao, localretornoempresa: e.target.value })}
+                        placeholder="Cidade, Estado"
+                        className="h-11 bg-white"
+                      />
+                    </div>
+
                   </div>
 
                   <div>
@@ -1329,6 +1470,37 @@ function App() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className='flex gap-4'>
+                    <div className='flex flex-col gap-1 mb-4'>
+                      <Label htmlFor="telefone">Telefone</Label>
+                      <InputMask
+                        mask="(99) 99999-9999"
+                        value={dadosOperacao.tel_quem_recebe ?? ''}
+                        onChange={(e) => setDadosOperacao({ ...dadosOperacao, tel_quem_recebe: e.target.value })}
+                      >
+                        {(inputProps) => (
+
+                          <Input
+                            {...inputProps}
+                            id="telefone"
+                            type="tel"
+                            placeholder="(11) 99999-9999"
+                            className="h-11 bg-white"
+                          />
+                        )}
+                      </InputMask>
+                    </div>
+                    <div className='flex flex-1 flex-col gap-1 mb-4'>
+                      <Label htmlFor="quem_recebe">Quem Recebe o Material</Label>
+                      <Input
+                        id="quem_recebe"
+                        value={dadosOperacao.quem_recebe ?? ''}
+                        onChange={(e) => setDadosOperacao({ ...dadosOperacao, quem_recebe: e.target.value })}
+                        placeholder="Quem Recebe o Material"
+                        className="h-11 bg-white"
+                      />
+                    </div>
+                  </div>
                   <div>
                     <Label htmlFor="valor_km">Valor por Quilômetro (R$)</Label>
                     <Input
@@ -1342,7 +1514,7 @@ function App() {
                     />
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 content-end">
                     <Button onClick={idSelecionado && idSelecionado !== "default" ? atualizarNegociacao : salvarnegociacao} disabled={loading}>
                       {loading ? (<Loader2 className="h-4 w-4 animate-spin mr-2" />) : (<CheckCircle className="h-4 w-4 mr-2" />)}
                       {idSelecionado && idSelecionado !== "default" ? "Atualizar Negociação" : "Salvar Negociação"}
@@ -1379,7 +1551,7 @@ function App() {
 
           {/* Aba Ordem de Serviço */}
           <TabsContent value="ordem-servico" className="space-y-6">
-            <OrdemServico />
+            <OrdemServico idSelecionado={idSelecionado} setIdSelecionado={setIdSelecionado} />
           </TabsContent>
 
           {/* Aba Calculadoras */}
@@ -1390,7 +1562,8 @@ function App() {
                   <div className="flex items-end gap-2">
                     <div>
                       <Label htmlFor="tipo_negocio">Consulta por Profissional</Label>
-                      <Select onValueChange={handleSelectChangeProf}>
+                      {/* <Select onValueChange={handleSelectChangeProf}> */}
+                      <Select value={idSelecionadoBtnProf} onValueChange={(e) => setIdSelecionadoBtnProf(e)}>
                         <SelectTrigger>
                           <SelectValue placeholder='Consulta por Profissional' />
                         </SelectTrigger>
@@ -1412,7 +1585,7 @@ function App() {
                       <Button
                         className="bg-red-500 hover:bg-red-600"
                         variant="destructive"
-                        onClick={deleteNegociacao}>
+                        onClick={deleteProfissional}>
                         Deletar
                       </Button>
                     </div>
@@ -1562,6 +1735,17 @@ function App() {
                 Limpar Formulário
               </Button>
             </div>
+          </TabsContent>
+
+          {/* Aba Relatórios */}
+          <TabsContent value="relatorios" className="space-y-6">
+            <Relatorios />
+          </TabsContent>
+
+          {/* Administração/Configurações */}
+          <TabsContent value="admin" className="space-y-6">
+            <Backup />
+            <RestoreOperacoes />
           </TabsContent>
 
           {/* Aba Mapa */}

@@ -100,7 +100,7 @@ class ApiService {
 
   async createNegociacao(dadosOperacao) {
     const { id, ...dadosSemId } = dadosOperacao;
-    console.log(dadosSemId);
+    // console.log('dados: ', dadosSemId);
     return this.request('/operacoes', {
       method: 'POST',
       body: JSON.stringify(dadosSemId),
@@ -109,6 +109,7 @@ class ApiService {
   }
 
   async updateNegociacao(idUpadete, negociacao, tipo) {
+    
     const {
       id,
       ...dadosSemId
@@ -137,7 +138,7 @@ class ApiService {
       ...dadosSem
     } = dadosSemId;
 
-    console.log(tipo === "os_equipamentos" ? dadosSem : dadosSemId);
+    // console.log(tipo === "os_equipamentos" ? dadosSem : dadosSemId);
     
     return this.request(`/operacoes/${idUpadete}`, {
       method: 'PUT',
@@ -168,6 +169,11 @@ class ApiService {
       console.error("Erro na ApiService:", error);
       return [];
     }
+  }
+
+  // Semáforo
+  async getSemaforo() {
+    return this.request('/api/semaforo')
   }
 
   // Eventos

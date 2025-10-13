@@ -27,10 +27,10 @@ const NavigationMenu = ({ activeTab, onTabChange }) => {
     { id: 'mapa', label: 'Mapa de Eventos', icon: MapPin },
     { id: 'calculadoras', label: 'Calculadoras', icon: Calculator },
     { id: 'semaforo', label: 'Semáforo (15 dias)', icon: AlertCircle },
+    { id: 'relatorios', label: 'Relatórios / Exportações', icon: FileText },
+    { id: 'admin', label: 'Administração / Configurações', icon: Settings},
     { id: 'equipe', label: 'Equipe / Profissionais', icon: Users, disabled: true },
-    { id: 'equipamentos', label: 'Equipamentos', icon: Settings, disabled: true },
-    { id: 'relatorios', label: 'Relatórios / Exportações', icon: FileText, disabled: true },
-    { id: 'admin', label: 'Administração / Configurações', icon: Settings, disabled: true }
+    { id: 'equipamentos', label: 'Equipamentos', icon: Settings, disabled: true }
   ]
 
   const handleTabChange = (tabId) => {
@@ -43,7 +43,7 @@ const NavigationMenu = ({ activeTab, onTabChange }) => {
     <>
       {/* Header Desktop */}
       <div className="hidden lg:block bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className=" mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">

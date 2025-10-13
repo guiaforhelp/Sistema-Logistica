@@ -3,16 +3,18 @@ import { Label } from '@/components/ui/label.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Checkbox } from '@/components/ui/checkbox.jsx';
 import { Button } from '@/components/ui/button.jsx';
-import { AlertCircle, CheckSquare, CheckCircle, Loader2 } from "lucide-react";
+import { CheckSquare } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import { Alert, AlertDescription } from '@/components/ui/alert.jsx'
 import apiService from "../services/api";
+import { LogIn } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 
 const locahostBackend = import.meta.env.VITE_BACKEND_URL;
 
 
-export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
+export default function OrdemServico() {
     // Estados para loading e mensagens
     const [message, setMessage] = useState({ type: '', text: '' })
 
@@ -54,7 +56,6 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
     });
 
     const [idSelecionadoBtn, setIdSelecionadoBtn] = useState("");
-    const [dados, setDados] = useState(null);
 
     // apenas guarda o ID selecionado
     const handleSelectChange = (value) => {
@@ -63,20 +64,13 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
 
     // só consulta quando clicar no botão
     const handleConsulta = () => {
-        // if (!selectedCliente) {
-        //     console.warn("Nenhum cliente selecionado!");
-        //     return;
-        // }
-
-        // // aqui você chama sua API ou lógica de consulta
-        // setIdSelecionado(selectedCliente)
-
-        // 🔹 Botão consulta → só ativa quando NÃO veio via props
-        if (idSelecionado) {
-            carregarCliente(idSelecionado);
-        } else {
-            setMessage({ type: "error", text: "Selecione um cliente antes de consultar." });
+        if (!selectedCliente) {
+            console.warn("Nenhum cliente selecionado!");
+            return;
         }
+
+        // aqui você chama sua API ou lógica de consulta
+        setIdSelecionado(selectedCliente)
     };
 
     const limparFormulario = () => {
@@ -121,13 +115,13 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
         setMessage({ type: '', text: '' })
     }
 
-    // const [selectedCliente, setSelectedCliente] = useState("");
-
-    const resetForm = () => {
+    const [selectedCliente, setSelectedCliente] = useState("");
+    
+      const resetForm = () => {
         limparFormulario();
         setIdSelecionado('default');
         setSelectedCliente('default');
-    };
+      };
 
     // Funções para gerenciar equipamentos
     const adicionarEquipamento = () => {
@@ -140,34 +134,35 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
         }
         setOrdemServico({
             ...ordemServico,
-            equipamentos: [...ordemServico.equipamentos, novoEquipamento]
+            composicao_equipamentos: [...ordemServico.composicao_equipamentos, novoEquipamento]
         })
     }
 
     const removerEquipamento = (index) => {
-        const novosEquipamentos = ordemServico.equipamentos.filter((_, i) => i !== index)
+        const novosEquipamentos = ordemServico.composicao_equipamentos.filter((_, i) => i !== index)
         setOrdemServico({
             ...ordemServico,
-            equipamentos: novosEquipamentos
+            composicao_equipamentos: novosEquipamentos
         })
     }
 
     const atualizarEquipamento = (index, campo, valor) => {
-        const novosEquipamentos = [...ordemServico.equipamentos]
+        const novosEquipamentos = [...ordemServico.composicao_equipamentos]
         novosEquipamentos[index][campo] = valor
 
 
         setOrdemServico({
             ...ordemServico,
-            equipamentos: novosEquipamentos
+            composicao_equipamentos: novosEquipamentos
         })
     }
 
     const atualizarDesc = (novaDescricao) => {
         setOrdemServico({
             ...ordemServico,
-            descTrabalho: novaDescricao
+            descricao_trabalho: novaDescricao
         });
+        
     };
 
 
@@ -175,35 +170,14 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
 
     //criando loop
     const [listaOperacoes, setListaOperacoes] = useState([]);
-    // const [idSelecionado, setIdSelecionado] = useState('');
+    const [idSelecionado, setIdSelecionado] = useState('');
     const [ordemServico, setOrdemServico] = useState({
-        descTrabalho: '',
+        descricao_trabalho: '',
         observacoes: '',
-        equipamentos: []
+        composicao_equipamentos: []
     });
 
-    // 🔹 Se o selectedCliente vier por props → busca automática
-    useEffect(() => {
-        if (idSelecionado) {
-            setIdSelecionado(idSelecionado);
-            carregarCliente(idSelecionado);
-        }
-    }, [idSelecionado]);
-
-    // 🔹 Função que realmente consulta no backend
-    const carregarCliente = async (id) => {
-        if (!id) return;
-        try {
-            setLoading(true);
-            const res = await fetch(`${locahostBackend}/api/operacoes/${id}`);
-            const data = await res.json();
-            setDados(data);
-        } catch (err) {
-            console.error('Erro ao buscar cliente:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+ 
 
     useEffect(() => {
         const fetchListaOperacoes = async () => {
@@ -303,26 +277,26 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
                 ...rest
             } = ordemServico || {};
 
-            const equipamentos = ordemServico.equipamentos;
+            const equipamentos = ordemServico.composicao_equipamentos;
 
 
-            // ordemServico.equipamentos.map((equipamento, index) => (
+            // ordemServico.composicao_equipamentos.map((equipamento, index) => (
             //     console.log(`ID: ${index}, ITEM: ${equipamento.descTrabalho}`)
 
             // ))
 
             const envDados = {
-                ...ordemServico,
-                equipamentos
+                ...dadosOperacao,
+                // equipamentos
             }
 
-            // console.log(...dadosOperacao);
-
+            console.log(envDados);
+            
 
             // chama a API no formato (id, payload)
-            await apiService.updateNegociacao(id, envDados, "os_equipamentos");
+            // await apiService.updateNegociacao(id, envDados, "os_equipamentos");
 
-            mostrarMensagem('success', 'Atualização realizada com sucesso')
+            setMessage({ type: 'success', text: `Atualização realizada com sucesso` })
         } catch (err) {
             console.error("Erro ao atualizar negociação:", err);
         }
@@ -337,7 +311,7 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
             try {
                 const res = await fetch(`${locahostBackend}/api/operacoes/${idSelecionado}`);
                 const data = await res.json();
-
+                
 
                 const equipamentosFormatados = Array.isArray(data.equipamentos)
                     ? data.equipamentos.map(item => ({
@@ -345,19 +319,19 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
                         equipamento_nome: item.equipamento_nome || '',
                         quantidade: Number(item.quantidade) || 1,
                         verificado: item.verificado || false,
-                        observacao_item: item.observacao_item || '',
+                        observacao_item: '',
                     }))
                     : [];
 
 
 
                 setOrdemServico({
-                    descTrabalho: data.descTrabalho,
+                    descricao_trabalho: data.descTrabalho,
                     observacoes: data.observacoes,
-                    equipamentos: equipamentosFormatados, // mesmo que vazio
+                    composicao_equipamentos: equipamentosFormatados, // mesmo que vazio
                 });
 
-                // setDadosOperacao(descTrabalho)
+                setDadosOperacao(descricao_trabalho)
 
 
             } catch (err) {
@@ -367,6 +341,7 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
 
         fetchOS();
     }, [idSelecionado]);
+    
 
     return (
         <div>
@@ -375,12 +350,11 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
                     <div className="flex items-end gap-2">
                         <div>
                             <Label htmlFor="tipo_negocio">Consulta por Cliente</Label>
-                            <Select value={idSelecionado} onValueChange={(e) => setIdSelecionado(e)}>
-                                <SelectTrigger className="bg-white">
-                                    <SelectValue placeholder={dadosOperacao.nomecliente ? dadosOperacao.nomecliente : 'Consulta por cliente'} />
+                            <Select value={selectedCliente} onValueChange={(e) => setSelectedCliente(e)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={selectedCliente == 'default' ? "Consulta por Cliente" : selectedCliente} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-white">
-                                    <SelectItem value="default">selecione um usuario</SelectItem>
                                     {listaOperacoes.map((opList) => (
                                         <SelectItem key={opList.id} value={opList.id}>{opList.nomecliente}</SelectItem>
                                     ))}
@@ -416,7 +390,7 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
                         </CardDescription>
                     </CardHeader>
                     {message.text && (
-                        <Alert className={message.type === 'error' ? 'fixed border-red-500 bg-red-50 w-[60%]' : 'fixed border-green-500 bg-green-50 w-[60%]'}>
+                        <Alert className={message.type === 'error' ? 'border-red-500 bg-red-50' : 'border-green-500 bg-green-50'}>
                             {message.type === 'error' ? <AlertCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
                             <AlertDescription className={message.type === 'error' ? 'text-red-700' : 'text-green-700'}>
                                 {message.text}
@@ -442,7 +416,7 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
                             id="descricao_trabalho"
                             className="w-full p-3 border border-gray-300 rounded-md resize-none"
                             rows="4"
-                            value={ordemServico.descTrabalho ?? ''}
+                            value={ordemServico.descricao_trabalho ?? ''}
                             onChange={(e) => atualizarDesc(e.target.value)}
                             placeholder="Descreva detalhadamente o trabalho que será executado..."
                         />
@@ -450,18 +424,15 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
 
                     <div className="flex items-center justify-between mb-4">
                         <Label>Composição do Equipamento - Checklist</Label>
-                        {Array.isArray(ordemServico.equipamentos) && ordemServico.equipamentos.length === 0 && (
-                            <Button onClick={adicionarEquipamento} size="sm">
-                                <CheckSquare className="h-4 w-4 mr-2" />
-                                Insira mais itens
-                            </Button>
-                        )}
+                        <Button onClick={adicionarEquipamento} size="sm">
+                            <CheckSquare className="h-4 w-4 mr-2" />
+                            Insira mais itens
+                        </Button>
                     </div>
-                    {Array.isArray(ordemServico.equipamentos) && ordemServico.equipamentos.length > 0 ?
-                        (ordemServico.equipamentos.map((equipamento, index) => (
+                    {Array.isArray(ordemServico.composicao_equipamentos) && ordemServico.composicao_equipamentos.length > 0 ?
+                        (ordemServico.composicao_equipamentos.map((equipamento, index) => (
                             <div key={index} className="p-4 border border-gray-200 rounded-lg">
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
-
                                     <div>
                                         <Label>Nome do Equipamento</Label>
                                         <Input
@@ -487,7 +458,6 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
                                             id={`verificado-${index}`}
                                             checked={equipamento.verificado}
                                             onCheckedChange={(checked) => atualizarEquipamento(index, 'verificado', checked)}
-                                            className="bg-white border-gray-400 data-[state=checked]:bg-blue-500"
                                         />
                                         <Label htmlFor={`verificado-${index}`}>Verificado</Label>
                                     </div>
@@ -498,16 +468,10 @@ export default function OrdemServico({ idSelecionado, setIdSelecionado }) {
                                             variant="destructive"
                                             size="sm"
                                             onClick={() => removerEquipamento(index)}
-                                            disabled={ordemServico.equipamentos.length === 1}
+                                            disabled={ordemServico.composicao_equipamentos.length === 1}
                                         >
                                             Remover
                                         </Button>
-                                        {index === ordemServico.equipamentos.length - 1 && (
-                                            <Button onClick={adicionarEquipamento} size="sm">
-                                                <CheckSquare className="h-4 w-4 mr-2" />
-                                                Insira mais itens
-                                            </Button>
-                                        )}
                                     </div>
                                 </div>
                                 <div className="mt-4">
